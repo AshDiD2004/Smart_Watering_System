@@ -1,0 +1,115 @@
+from typing import Final
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, JobQueue
+import serial
+import random
+
+TOKEN: Final = '7686850689:AAH9H6ChUrmiSEZUlDZWGjf2OEDKSf9YqIU'
+BOT_USERNAME: Final = '@IT254_Project_Bot'
+CHAT_ID: Final = 7517582773
+arduino = serial.Serial('COM5', 9600)
+
+# Checks soil moisture from arduino board
+def soil_moisture():
+    arduino.write(b'P')
+    arduino.in_waiting > 0
+    moisture = arduino.readline().decode('utf-8').strip()
+    print(f'Moisture: {moisture}')
+    return int(moisture) 
+
+
+# Commands
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Hello! I am your Smart Watering Bot! Please let me know if you need any assistence 😊🌱.')
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('I will send you a notification when your plant needs to be watered, and I can provide you with the soil moisture percentage with the /percentage command! ')
+
+async def percentage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    percent = soil_moisture()
+    await update.message.reply_text(f'Soil moisture is at {percent}%')
+
+# Sends notification via Telegram when soil moisture is below 70%, telling user to water plant
+# Also sends notification via Telegram when soil moisture is 70% or more, telling user plant is watered
+async def check_soil_moisture(context: ContextTypes.DEFAULT_TYPE):
+    moisture = soil_moisture()
+    if moisture is not None and moisture < 70:
+        await context.bot.send_message(chat_id = CHAT_ID, text = 'Please water your plant soon! It is thirsty.. 💧🌱')
+    else:
+        await context.bot.send_message(chat_id = CHAT_ID, text = 'Your plant is hydrated, no need to water 😊🌱')
+
+
+
+# Responses
+def handle_response(text: str):
+    msg: str = text.lower()
+
+    if 'hello' in msg:
+        greeting = ['Hello! I can not wait to assist you? 😊🌱', 'Hello! How can I assist you? 😊🌱', 'Hi there!', 'Hello! Is there anything in particular I can assist you with? 😊🌱']
+        return random.choice(greeting)
+
+    if 'how are you' in msg:
+        return 'I am doing great!'
+
+    if 'i love you' in msg:
+        answer = ['What a nice thing to say. Thank you!', 'Aw, how nice.', '😊😊😊']
+        return random.choice(answer)
+    
+    if 'tell me a joke' in msg:
+        jokes = ['What did one hungry plant say to the other plant? I could use a light snack.', 'What did the flower tell the other flower after she told a joke? I was just pollen your leg!', 'What part of a flower has the most friends? The bud.', 'How does a flower whistle? By using its tulips.', 'What did one cactus say to the other cactus? You’re looking sharp!', 'What has no fingers but lots of rings? A tree.', 'Why do trees have so many friends? They branch out.', 'How is a flower similar to the letter A? A bee goes after it.']
+        return random.choice(jokes)
+
+    if 'are you real' in msg:
+        response = ['I am your bot!', 'I am a bot?', 'I am a bot..', '🤖🤖🤖']
+        return random.choice(response)
+
+    if 'goodbye' in msg:
+        goodbye = ['Goodbye! Let me know if I can help with anything 😊🌱.', 'Bye! I will let you know when your plant needs watering 😊🌱.', 'Goodbye. See you soon 😊🌱!']
+        return random.choice(goodbye)
+
+    if 'thank you' in msg:
+        thanks = ['No problem! Let me know if I can help you with anything 😊🌱.', 'Anytime! I will notify you if your plant needs water 😊🌱.']
+        return random.choice(thanks)
+
+    if 'tell me about yourself' in msg:
+        return 'I am your Smart Watering Bot, I was created to notify you when your plant needs watering or if you need to know the percentage of moisture is in your soil.. I also love plants 😊🌱!'
+
+    return ' I do not understand...'
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg_type: str = update.message.chat.type
+    text: str = update.message.text
+
+    print(f'User ({update.message.chat.id}) in {msg_type}: "{text}"')
+
+    if msg_type == 'group':
+        if BOT_USERNAME in text:
+            new_text: str = text.replace(BOT_USERNAME, '').strip()
+            response: str = handle_response(new_text)
+        else:
+            return
+    else:
+        response: str = handle_response(text)
+
+    print('Bot:', response)
+    await update.message.reply_text(response)
+
+
+if __name__ == '__main__':
+    print('Starting bot...')
+    app = Application.builder().token(TOKEN).build()
+
+    # Commands
+    app.add_handler(CommandHandler('start', start_command))
+    app.add_handler(CommandHandler('help', help_command))
+    app.add_handler(CommandHandler('percentage', percentage_command))
+
+    # Messages
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Check soil moisture
+    app.job_queue.run_repeating(check_soil_moisture, interval = 60, first = 10)
+
+    print('Polling...')
+    app.run_polling(poll_interval=3)
