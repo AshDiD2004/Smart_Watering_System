@@ -27,4 +27,6 @@ This is my Deliverable1 for IT254. My project will send a notification via the T
 - **Telegram Bot Commands:** Ensure your bot's commands are set up correctly, both in Telegram and Python.
 - **Telegram Bot Token:** Ensure your bot's API token is not lost or incorrect. You will get the Token from Bot Father, nowhere else.
 
+YOUTUBE VIDEO LINK: https://youtu.be/SSlYcpSesLs?si=XKNLaYZHsjNmK8Rz
+
 
